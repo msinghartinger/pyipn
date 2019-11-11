@@ -4,7 +4,8 @@ import astropy.constants as constants
 
 from .lightcurve import LightCurve
 from .poisson_gen import source_poisson_generator, background_poisson_generator
-
+from .geometry import Location, Pointing
+from .effective_area import EffectiveArea
 
 class Detector(object):
     def __init__(self, location, pointing, effective_area, name):
@@ -29,6 +30,16 @@ class Detector(object):
         self._background_norm = 50.0
 
         self._name = name
+
+    @classmethod
+    def from_GCRS(cls, GCRS_coord, pointing, name, effective_area=1.):
+        return cls( 
+                Location.from_GCRS(GCRS_coord),
+                pointing,
+                EffectiveArea(effective_area),
+                name
+            )
+
 
     @property
     def name(self):
@@ -98,7 +109,7 @@ class Detector(object):
 
         return self._location.coord.separation(grb.location.coord)
 
-    def build_light_curve(self, grb, T0, tstart, tstop):
+    def build_light_curve(self, grb, T0, tstart, tstop, occultation=False):
         """
         Build the light curve observed from the GRB
 
@@ -128,10 +139,10 @@ class Detector(object):
         observed_intensity = K * self._effective_area.effective_area
 
         # compute the arrival times
-        
-        source_arrival_times = source_poisson_generator(
-            tstart, tstop, observed_intensity, T0, t_rise, t_decay
-        )
+        if not occultation:
+            source_arrival_times = source_poisson_generator(
+                tstart, tstop, observed_intensity, T0, t_rise, t_decay
+            )
 
         bkg_arrival_times = background_poisson_generator(
             tstart, tstop, self._background_slope, self._background_norm

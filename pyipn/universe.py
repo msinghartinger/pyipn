@@ -141,10 +141,25 @@ class Universe(object):
         self._light_curves = collections.OrderedDict()
 
         for t0, (name, detector) in zip(self._T0, self._detectors.items()):
+            occ = self.check_occultation(detector)
 
             self._light_curves[name] = detector.build_light_curve(
-                self._grb, t0, tstart, tstop
+                self._grb, t0, tstart, tstop, occultation=occ
             )
+
+    def check_occultation(self, detector):
+        """
+        check whether the earth is in between the detector and the GRB
+        """
+        earth_loc = Location.from_GCRS([0.,0.,0.]).get_cartesian_coord().xyz
+        de_vec = (earth_loc - detector.location.get_cartesian_coord().xyz)
+        norm_grb_vec = self._grb.location.get_norm_vec(u.km)
+
+        if (np.linalg.norm(np.cross(de_vec.value, norm_grb_vec.value)) < 6370) and (de_vec.dot(norm_grb_vec).value > 0):
+            return True
+        else:
+            return False
+
 
     @classmethod
     def from_yaml(cls, yaml_file):

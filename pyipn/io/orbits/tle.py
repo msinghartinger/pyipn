@@ -5,6 +5,8 @@ from sgp4.io import twoline2rv
 
 from pyorbital.orbital import Orbital
 
+from pyipn.io.package_utils import get_path_of_data_file, get_path_of_data_dir
+
 '''
 Send query request to space-track.org for a specified timerange (drange) 
 and satellite id and write the corresponding two-line-elements into a data file.
@@ -28,12 +30,12 @@ def convert_to_decimal_days(dt):
 '''
 find closest epoch TLE to correstponding datetime from specified file and return the two lines
 '''
-def find_closest_epoch(dt, tle_path):
+def find_closest_epoch(dt, tle_file):
 	day = convert_to_decimal_days(dt)
 	diff = []
 
-	with open(tle_path, 'r') as fp:
-		lines = fp.readlines()
+	with open(get_path_of_data_file(tle_file), 'r') as f:
+		lines = f.readlines()
 		for line in lines:
 			elem = line.split()
 			if elem[0] == '1':
@@ -52,8 +54,8 @@ return position of satellite at time dt based on TLE file;
 https://github.com/skyfielders/python-skyfield/issues/142)
 position in kilometers from the center of the earth (GCRS)
 '''
-def position_skyfield(dt, tle_path):
-	line1, line2 = find_closest_epoch(dt, tle_path)
+def position_skyfield(dt, tle_file):
+	line1, line2 = find_closest_epoch(dt, tle_file)
 
 	satellite = twoline2rv(line1, line2, wgs72)
 	position, velocity = satellite.propagate(dt.year, dt.month, dt.day, dt.hour, dt.minute, dt.second)
