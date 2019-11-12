@@ -143,6 +143,8 @@ class Detector(object):
             source_arrival_times = source_poisson_generator(
                 tstart, tstop, observed_intensity, T0, t_rise, t_decay
             )
+        else:
+            source_arrival_times = np.array([0.])
 
         bkg_arrival_times = background_poisson_generator(
             tstart, tstop, self._background_slope, self._background_norm
