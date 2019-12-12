@@ -122,7 +122,7 @@ def read_gbm_tte_file(path):
     """
     with fits.open(path) as tte:
         event_t = tte["EVENTS"].data["TIME"]
-        trigtimesec = trigdat["EVENTS"].header['TRIGTIME']
+        trigtimesec = tte["EVENTS"].header['TRIGTIME']
 
     tevent = conv_to_utc_fermi(event_t).unix
     trigtime = conv_to_utc_fermi(trigtimesec)
@@ -225,7 +225,7 @@ def get_gbm_tte_files(year, data_dir):
 
         url1 = url_start+bnlink+"current/"
 
-        page = requests.get(url)
+        page = requests.get(url1)
         data = page.text
         soup = BeautifulSoup(data)
 
@@ -246,9 +246,9 @@ def get_gbm_tte_files(year, data_dir):
                 url = url1 + tte
                 wget.download(url, data_dir + "/lc/GBM_TTE/"+bnlink+"/"+tte)
         else:
-            print("No TTE file found in: "+url)
+            print("No TTE file found in: "+url1)
 
-        time.sleep(0.25)
+        time.sleep(300)
 
     return tot_ttefiles
 
@@ -397,7 +397,12 @@ def gbm_tte_to_hdf5(data_dir):
     dirs = get_immediate_subdirectories(tte_dir)
 
     with h5py.File((data_dir+"/lc/GBM_TTE/gbm_tte.hdf5"), 'a') as f:
+        idx = 0
         for a_dir in dirs:
+            idx += 1
+            sys.stdout.write("\r{} of {}".format(idx, len(dirs)))
+            sys.stdout.flush()
+
             files = []
 
             for file in os.listdir(tte_dir+a_dir+"/"):
@@ -413,8 +418,8 @@ def gbm_tte_to_hdf5(data_dir):
 
             all_tevent = np.sort(all_tevent)
 
-            grp = f.require_group(trigtime[0].strftime('%Y-%m-%d_%H:%M:%S.%f'))
-            grp.attrs['trigtime'] = trigtime[0].strftime('%Y-%m-%d_%H:%M:%S.%f')
+            grp = f.require_group(all_trigtime[0].strftime('%Y-%m-%d_%H:%M:%S.%f'))
+            grp.attrs['trigtime'] = all_trigtime[0].strftime('%Y-%m-%d_%H:%M:%S.%f')
             try:
                 del grp['tevent']
                 t = grp.create_dataset('tevent', data=all_tevent)
