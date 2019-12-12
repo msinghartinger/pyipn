@@ -83,7 +83,7 @@ def read_gbm_trigdat_file(filename, data_dir):
         data_dir (str): Description
 
     Returns:
-        start (astropy.time.Time): start time of each data bin in unix time seconds
+        tstart (astropy.time.Time): start time of each data bin in unix time seconds
         combinedchannels (array<float>): combined count rates of all 8 channels for each of the 14 GBM detectors
         rate (array<float>): individual rate for each channel and detector
         binsize (array<float>): bin size in seconds

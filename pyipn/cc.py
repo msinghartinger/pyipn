@@ -71,13 +71,15 @@ def dcf(uccf, lags, start=-5, stop=5, step=0.1):
     """
     bins = np.arange(start, stop, step)
     dcf = np.zeros(bins.size)
+    sigma_dcf = np.zeros(bins.size)
 
     for i in range(bins.size):
         lag_pairs = uccf[np.where((lags >= (bins[i]-0.5*step)) &
                                   (lags < (bins[i] + 0.5*step)))]
         dcf[i] = np.mean(lag_pairs)
+        sigma_dcf[i] = np.std(lag_pairs)
 
-    return bins, dcf
+    return bins, dcf, sigma_dcf
 
 
 def lnuccf_ij(xi, lmean_x, lstdev_x, error_x, yj, lmean_y, lstdev_y, error_y):
@@ -128,6 +130,7 @@ def lndcf(lc1_x, lc1_y, lc2_x, lc2_y, lags, start=-5, stop=5, step=0.1):
 
     bins = np.arange(start, stop, step)
     lndcf = np.zeros(bins.size)
+    sigma_lndcf = np.zeros(bins.size)
 
     for k in range(bins.size):
         lag_pairs = pairs[np.where((lags >= (bins[k]-0.5*step)) &
@@ -147,5 +150,6 @@ def lndcf(lc1_x, lc1_y, lc2_x, lc2_y, lags, start=-5, stop=5, step=0.1):
         lnuccf = np.array(lnuccf)
 
         lndcf[k] = np.mean(lag_pairs)
+        sigma_lndcf[k] = np.std(lag_pairs)
 
-    return bins, lndcf
+    return bins, lndcf, sigma_lndcf
