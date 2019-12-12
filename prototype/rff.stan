@@ -74,8 +74,8 @@ transformed data {
   matrix[N_model,k] predict_sinfeatures;
 
   //  real dt = 29.64;
-  real tstart = -2; 
-  real tstop = 20;
+  real tstart = time1[1]+10.;
+  real tstop = time1[num_elements(time1)]-10.;
   real strength = 5.;
 
   // for the non-delayed LC, let's go ahead and compute the fucking matrices
