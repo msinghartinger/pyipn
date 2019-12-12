@@ -236,8 +236,13 @@ def get_gbm_tte_files(year, data_dir):
 
         re_tte = re.compile("glg_tte_.*")
         ttefiles = list(filter(re_tte.match, links))
+        """
+        make sure all existing directories are complete and not missing any files!
+        """
 
-        if not os.path.exists(data_dir+"/lc/GBM_TTE/"+bnlink+"/"):
+        if os.path.exists(data_dir+"/lc/GBM_TTE/"+bnlink+"/"):
+            continue
+        else:
             os.makedirs(data_dir+"/lc/GBM_TTE/"+bnlink+"/")
 
         if len(ttefiles) > 0:
