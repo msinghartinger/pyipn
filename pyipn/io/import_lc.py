@@ -111,6 +111,25 @@ def read_gbm_trigdat_file(filename, data_dir):
     return tstart, combinedchannels, rate, binsize, start, trigtime, trigtimesec, pos
 
 
+def read_gbm_tte_file(path):
+    """Summary
+    
+    Args:
+        path (TYPE): Description
+    
+    Returns:
+        TYPE: Description
+    """
+    with fits.open(path) as tte:
+        event_t = tte["EVENTS"].data["TIME"]
+        trigtimesec = trigdat["EVENTS"].header['TRIGTIME']
+
+    tevent = conv_to_utc_fermi(event_t).unix
+    trigtime = conv_to_utc_fermi(trigtimesec)
+
+    return tevent, trigtime
+
+
 def get_gbm_trigdat_files(year, data_dir):
     """Summary
 
@@ -136,6 +155,9 @@ def get_gbm_trigdat_files(year, data_dir):
     re_bn = re.compile("bn.*")
     bnlinks = list(filter(re_bn.match, links))
 
+    if not os.path.exists(data_dir+"/lc/GBM_TRIGDAT/"):
+        os.makedirs(data_dir+"/lc/GBM_TRIGDAT/")
+
     trigdatfiles = []
 
     for idx, bnlink in enumerate(bnlinks):
@@ -156,8 +178,6 @@ def get_gbm_trigdat_files(year, data_dir):
         re_trigdat = re.compile("glg_trigdat.*")
         trigdatfile = list(filter(re_trigdat.match, links))
 
-        if not os.path.exists(data_dir+"/lc/GBM_TRIGDAT/"):
-            os.makedirs(data_dir+"/lc/GBM_TRIGDAT/")
         if len(trigdatfile) > 0:
             trigdatfiles.append(trigdatfile[0])
             url = url + trigdatfile[0]
@@ -168,6 +188,69 @@ def get_gbm_trigdat_files(year, data_dir):
         time.sleep(0.5)
 
     return trigdatfiles
+
+
+def get_gbm_tte_files(year, data_dir):
+    """Summary
+    
+    Args:
+        year (TYPE): Description
+        data_dir (TYPE): Description
+    
+    Returns:
+        TYPE: Description
+    """
+    url_start = "https://heasarc.gsfc.nasa.gov/FTP/fermi/data/gbm/triggers/" + \
+                str(year)+"/"
+
+    page = requests.get(url_start)
+    data = page.text
+    soup = BeautifulSoup(data)
+    links = []
+
+    for link in soup.find_all('a'):
+        links.append(link.get('href'))
+
+    re_bn = re.compile("bn.*")
+    bnlinks = list(filter(re_bn.match, links))
+
+    tot_ttefiles = []
+
+    if not os.path.exists(data_dir+"/lc/GBM_TTE/"):
+        os.makedirs(data_dir+"/lc/GBM_TTE/")
+
+    for idx, bnlink in enumerate(bnlinks):
+        sys.stdout.write("\r{} of {}".format(idx, len(bnlinks)))
+        sys.stdout.flush()
+
+        url1 = url_start+bnlink+"current/"
+
+        page = requests.get(url)
+        data = page.text
+        soup = BeautifulSoup(data)
+
+        links = []
+
+        for link in soup.find_all('a'):
+            links.append(link.get('href'))
+
+        re_tte = re.compile("glg_tte_.*")
+        ttefiles = list(filter(re_tte.match, links))
+
+        if not os.path.exists(data_dir+"/lc/GBM_TTE/"+bnlink+"/"):
+            os.makedirs(data_dir+"/lc/GBM_TTE/"+bnlink+"/")
+
+        if len(ttefiles) > 0:
+            tot_ttefiles.extend(ttefiles)
+            for tte in ttefiles:
+                url = url1 + tte
+                wget.download(url, data_dir + "/lc/GBM_TTE/"+bnlink+"/"+tte)
+        else:
+            print("No TTE file found in: "+url)
+
+        time.sleep(0.25)
+
+    return tot_ttefiles
 
 
 def get_integral_spiacs_files(year, data_dir):
@@ -292,11 +375,48 @@ def gbm_trigdat_to_hdf5(data_dir):
                 t = grp.create_dataset('rate', data=rate)
             try:
                 del grp['combinedchannels']
-                r = grp.create_dataset('combinedchannels', data=combinedchannels)
+                r = grp.create_dataset(
+                    'combinedchannels', data=combinedchannels)
             except KeyError:
-                r = grp.create_dataset('combinedchannels', data=combinedchannels)
+                r = grp.create_dataset(
+                    'combinedchannels', data=combinedchannels)
             try:
                 del grp['position']
                 p = grp.create_dataset('position', data=pos)
             except KeyError:
                 p = grp.create_dataset('position', data=pos)
+
+
+def get_immediate_subdirectories(a_dir):
+    return [name for name in os.listdir(a_dir)
+            if os.path.isdir(os.path.join(a_dir, name))]
+
+
+def gbm_tte_to_hdf5(data_dir):
+    tte_dir = data_dir+"/lc/GBM_TTE/"
+    dirs = get_immediate_subdirectories(tte_dir)
+
+    with h5py.File((data_dir+"/lc/GBM_TTE/gbm_tte.hdf5"), 'a') as f:
+        for a_dir in dirs:
+            files = []
+
+            for file in os.listdir(tte_dir+a_dir+"/"):
+                files.append(file)
+
+            all_tevent = np.array([])
+            all_trigtime = []
+
+            for filename in files:
+                tevent, trigtime = read_gbm_tte_file(tte_dir+"/"+a_dir+"/"+filename)
+                np.concatenate((all_tevent, tevent))
+                all_trigtime.append(trigtime)
+
+            all_tevent = np.sort(all_tevent)
+
+            grp = f.require_group(trigtime[0].strftime('%Y-%m-%d_%H:%M:%S.%f'))
+            grp.attrs['trigtime'] = trigtime[0].strftime('%Y-%m-%d_%H:%M:%S.%f')
+            try:
+                del grp['tevent']
+                t = grp.create_dataset('tevent', data=all_tevent)
+            except KeyError:
+                t = grp.create_dataset('tevent', data=all_tevent)
