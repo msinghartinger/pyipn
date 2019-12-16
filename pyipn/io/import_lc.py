@@ -6,6 +6,8 @@ import numpy as np
 from astropy.io import fits
 from astropy.time import Time, TimeDelta
 
+import pdb
+
 from bs4 import BeautifulSoup, SoupStrainer
 import requests
 import re
@@ -316,6 +318,28 @@ def get_integral_spiacs_files(year, data_dir):
     return lcfiles
 
 
+def get_reference_grb_position(year):
+    url_start="http://www.mpe.mpg.de/~jcg/grbgen.html"
+
+    page = requests.get(url_start)
+    data = page.text
+    soup = BeautifulSoup(data)
+
+    table = soup.find('table')
+    rows = table.find_all('tr')
+    links  = []
+
+    for row in rows:
+        link = row.find('a')
+        if int(link.string[0:1]) == (year%2000):
+            links.append(link.get('href'))
+
+    for link in links:
+        print(link)
+        
+
+
+
 def integral_spiacs_to_hdf5(data_dir):
     """Summary
 
@@ -421,12 +445,12 @@ def gbm_tte_to_hdf5(data_dir):
                 np.concatenate((all_tevent, tevent))
                 all_trigtime.append(trigtime)
 
-            all_tevent = np.sort(all_tevent)
+            sort_tevent = np.sort(all_tevent)
 
             grp = f.require_group(all_trigtime[0].strftime('%Y-%m-%d_%H:%M:%S.%f'))
             grp.attrs['trigtime'] = all_trigtime[0].strftime('%Y-%m-%d_%H:%M:%S.%f')
             try:
                 del grp['tevent']
-                t = grp.create_dataset('tevent', data=all_tevent)
+                t = grp.create_dataset('tevent', data=sort_tevent)
             except KeyError:
-                t = grp.create_dataset('tevent', data=all_tevent)
+                t = grp.create_dataset('tevent', data=sort_tevent)

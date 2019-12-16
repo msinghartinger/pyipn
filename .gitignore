@@ -108,3 +108,9 @@ pyipn/test.ipynb
 /examples/template_config.yaml
 
 /pyipn/data/*_tle.txt*
+/pyipn/Scripts
+/pyipn/share
+/pyipn/tcl
+/pyipn/Lib
+/pyipn/Include
+/pyipn/etc

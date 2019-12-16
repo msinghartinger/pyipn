@@ -150,6 +150,7 @@ class Universe(object):
     def _check_occultation(self, detector):
         """
         check whether the earth is in between the detector and the GRB
+        Returns: False if not occulted, True if occulted
         """
         earth_loc = Location.from_GCRS([0.,0.,0.]).get_cartesian_coord().xyz
         de_vec = (earth_loc - detector.location.get_cartesian_coord().xyz)
@@ -211,8 +212,8 @@ class Universe(object):
     def calculate_annulus(self, detector1, detector2):
         """FIXME! briefly describe function
 
-        :param detector1: 
-        :param detector2: 
+        :param detector1: name of detector1
+        :param detector2: name of detector2
         :returns: 
         :rtype: 
 
@@ -249,6 +250,8 @@ class Universe(object):
         theta = np.arccos(
             np.around((constants.c * dt / distance).decompose().value, 15)
         )
+        if np.isnan(theta):
+            raise ValueError("angle theta is nan, given positions or dt is probably wrong")
 
         return (norm_d, np.array([ra.value, dec.value]) * ra.unit, theta * u.rad)
 

@@ -72,6 +72,7 @@ REQUIRED = [
     "pyyaml",
     "sgp4",
     "pyorbital",
+    "beautifulsoup4"
 ]
 
 

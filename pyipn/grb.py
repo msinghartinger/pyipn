@@ -9,8 +9,8 @@ class GRB(object):
 
         A GRB that emits a spectrum as a given location
 
-        :param ra: RA of the GRB
-        :param dec: DEC of the GRB
+        :param ra: RA of the GRB [0,360) deg
+        :param dec: DEC of the GRB [-90, 90) deg
         :param distance: distance to the GRB
         :param K: normalization of the flux
         :param t_rise: rise time of the flux

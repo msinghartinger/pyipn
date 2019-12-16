@@ -10,8 +10,8 @@ class Pointing(object):
         Currently, this is a static property, but could
         be extended to include time in the future
 
-        :param ra: the RA of the pointing
-        :param dec: the DEC of the pointing
+        :param ra: the RA of the pointing [0,360) deg
+        :param dec: the DEC of the pointing [-90, 90) deg
         :returns: 
         :rtype: 
 
@@ -86,8 +86,8 @@ class DetectorLocation(Location):
     def __init__(self, ra, dec, altitude, obs_time):
         """FIXME! briefly describe function
 
-        :param ra: 
-        :param dec: 
+        :param ra: [0,360) deg
+        :param dec: [-90, 90) deg
         :param altitude: 
         :param obs_time: 
         :returns: 
