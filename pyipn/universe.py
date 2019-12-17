@@ -8,6 +8,7 @@ import astropy.constants as constants
 from astropy.coordinates import SkyCoord, UnitSphericalRepresentation
 from mpltools import color as mpl_color
 import matplotlib.pyplot as plt
+from matplotlib.patches import Circle
 
 from .effective_area import EffectiveArea
 from .geometry import Pointing, DetectorLocation, Location
@@ -263,6 +264,7 @@ class Universe(object):
         ax=None,
         radius=None,
         center=None,
+        point=None,
         **kwargs
     ):
 
@@ -293,6 +295,7 @@ class Universe(object):
 
             fig, ax = plt.subplots(subplot_kw=skw_dict)
 
+
         else:
 
             fig = ax.get_figure()
@@ -312,6 +315,14 @@ class Universe(object):
         )
 
         ax.add_patch(circle)
+
+        if point is not None:
+            p = Circle((point[0], point[1]), radius=1.5, color='red', transform=ax.get_transform("icrs"))
+            ax.add_patch(p)
+
+        #ax.xaxis.set_major_locator(MultipleLocator(1))
+        #ax.yaxis.set_major_locator(MultipleLocator(1))
+        ax.grid(which='major', color='#CCCCCC', linestyle='--')
 
         return fig
 

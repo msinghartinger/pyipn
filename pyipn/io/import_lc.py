@@ -20,16 +20,16 @@ import os
 
 def read_integral_spiacs_file(filename, data_dir):
     """Summary
-
+    
     Args:
         filename (str): Description
         data_dir (str): Description
-
+    
     Returns:
         time (array<float>): in unix time seconds
         count (array<float>): event count
         trigime (astropy.time.Time): trigger time in utc
-
+    
     """
     with open(data_dir+"/lc/INTEGRAL_SPIACS/"+filename, 'r') as f:
         lines = f.readlines()
@@ -61,10 +61,10 @@ def read_integral_spiacs_file(filename, data_dir):
 
 def conv_to_utc_fermi(t):
     """Summary
-
+    
     Args:
         t (float): time in seconds from tref
-
+    
     Returns:
         astropy.time.Time: time in utc
     """
@@ -79,11 +79,11 @@ def conv_to_utc_fermi(t):
 
 def read_gbm_trigdat_file(filename, data_dir):
     """Summary
-
+    
     Args:
         filename (str): Description
         data_dir (str): Description
-
+    
     Returns:
         tstart (astropy.time.Time): start time of each data bin in unix time seconds
         combinedchannels (array<float>): combined count rates of all 8 channels for each of the 14 GBM detectors
@@ -122,7 +122,7 @@ def read_gbm_tte_file(path):
     Returns:
         TYPE: Description
     """
-    with fits.open(path) as tte:
+    with fits.open(path, memmap=True) as tte:
         event_t = tte["EVENTS"].data["TIME"]
         trigtimesec = tte["EVENTS"].header['TRIGTIME']
 
@@ -134,11 +134,11 @@ def read_gbm_tte_file(path):
 
 def get_gbm_trigdat_files(year, data_dir):
     """Summary
-
+    
     Args:
         year (int): Description
         data_dir (str): Description
-
+    
     Returns:
         (list<str>): list of file names
     """
@@ -163,7 +163,7 @@ def get_gbm_trigdat_files(year, data_dir):
     trigdatfiles = []
 
     for idx, bnlink in enumerate(bnlinks):
-        sys.stdout.write("\r{} of {}".format(idx, len(bnlinks)))
+        sys.stdout.write("\r{} of {}".format(idx, len(bnlinks)-1))
         sys.stdout.flush()
 
         url = url_start+bnlink+"current/"
@@ -262,11 +262,11 @@ def get_gbm_tte_files(year, data_dir):
 
 def get_integral_spiacs_files(year, data_dir):
     """Summary
-
+    
     Args:
         year (int): Description
         data_dir (str): Description
-
+    
     Returns:
         (list<str>): list of file names
     """
@@ -308,7 +308,7 @@ def get_integral_spiacs_files(year, data_dir):
         os.makedirs(data_dir+"/lc/INTEGRAL_SPIACS/")
 
     for idx, u in enumerate(comp_lc_urls):
-        sys.stdout.write("\r{} of {}".format(idx, len(comp_lc_urls)))
+        sys.stdout.write("\r{} of {}".format(idx, len(comp_lc_urls)-1))
         sys.stdout.flush()
 
         wget.download(u, data_dir+"/lc/INTEGRAL_SPIACS/")
@@ -318,7 +318,15 @@ def get_integral_spiacs_files(year, data_dir):
     return lcfiles
 
 
-def get_reference_grb_position(year):
+def get_reference_grb_position(year, data_dir):
+    """
+    get reference ra and dec positions of observed GRBs from 
+    http://www.mpe.mpg.de/~jcg/grbgen.html and save them in hdf5 file
+    
+    Args:
+        year (TYPE): Description
+        data_dir (TYPE): Description
+    """
     url_start="http://www.mpe.mpg.de/~jcg/grbgen.html"
 
     page = requests.get(url_start)
@@ -331,18 +339,60 @@ def get_reference_grb_position(year):
 
     for row in rows:
         link = row.find('a')
-        if int(link.string[0:1]) == (year%2000):
-            links.append(link.get('href'))
+        if link != None:
+            if int(link.string[0:2]) == (year%2000):
+                links.append(link.get('href'))
 
-    for link in links:
-        print(link)
-        
+    url_start = "http://www.mpe.mpg.de/~jcg/"
+    grbs = []
 
+    for idx, link in enumerate(links):
+        sys.stdout.write("\r{} of {}".format(idx, len(links)-1))
+        sys.stdout.flush()
+
+        url = url_start + link
+        subpage = requests.get(url)
+        subdata = subpage.text
+        soup = BeautifulSoup(subdata)
+        grbtext = soup.find_all('pre')
+        for text in grbtext:
+            text = text.string
+            if text != None:
+                lines = text.splitlines()
+                lines = {line.split()[0] : line.split()[1:] for line in lines if len(line)>1}
+                
+                try:
+                    ra = float(lines['GRB_RA:'][0][:-1])
+                    dec = float(lines['GRB_DEC:'][0][:-1])
+                    date = lines['GRB_DATE:'][4]
+                    time = lines['GRB_TIME:'][2][1:-1]
+
+                except KeyError:
+                    try:
+                        ra = float(lines['EVENT_RA:'][0][:-1])
+                        dec = float(lines['EVENT_DEC:'][0][:-1])
+                        date = lines['EVENT_DATE:'][4]
+                        time = lines['EVENT_TIME:'][2][1:-1]
+                    except KeyError:
+                        continue
+
+                datetime = '20'+date+'_'+time
+                time = Time.strptime(datetime, '%Y/%m/%d_%H:%M:%S.%f')
+
+                grb = {'ra': ra, 'dec': dec, 'time': time}
+                grbs.append(grb)
+
+    with h5py.File((data_dir+"reference_grbs.hdf5"), 'a') as f:
+        for grb in grbs:
+            grp = f.require_group(grb['time'].strftime('%Y-%m-%d_%H:%M:%S.%f'))
+            grp.attrs['time'] = grb['time'].strftime('%Y-%m-%d_%H:%M:%S.%f')
+            grp.attrs['ra'] = grb['ra']
+            grp.attrs['dec'] = grb['dec']
 
 
 def integral_spiacs_to_hdf5(data_dir):
     """Summary
-
+    
     Args:
         data_dir (str): Description
     """
@@ -371,7 +421,7 @@ def integral_spiacs_to_hdf5(data_dir):
 
 def gbm_trigdat_to_hdf5(data_dir):
     """Summary
-
+    
     Args:
         data_dir (str): Description
     """
@@ -417,11 +467,24 @@ def gbm_trigdat_to_hdf5(data_dir):
 
 
 def get_immediate_subdirectories(a_dir):
+    """Summary
+    
+    Args:
+        a_dir (TYPE): Description
+    
+    Returns:
+        TYPE: Description
+    """
     return [name for name in os.listdir(a_dir)
             if os.path.isdir(os.path.join(a_dir, name))]
 
 
 def gbm_tte_to_hdf5(data_dir):
+    """Summary
+    
+    Args:
+        data_dir (TYPE): Description
+    """
     tte_dir = data_dir+"/lc/GBM_TTE/"
     dirs = get_immediate_subdirectories(tte_dir)
 
@@ -437,12 +500,17 @@ def gbm_tte_to_hdf5(data_dir):
             for file in os.listdir(tte_dir+a_dir+"/"):
                 files.append(file)
 
-            all_tevent = np.array([])
+            all_tevent = np.empty(0, dtype=float)
             all_trigtime = []
 
             for filename in files:
-                tevent, trigtime = read_gbm_tte_file(tte_dir+"/"+a_dir+"/"+filename)
-                np.concatenate((all_tevent, tevent))
+                try:
+                    tevent, trigtime = read_gbm_tte_file(tte_dir+"/"+a_dir+"/"+filename)
+                except TypeError as te:
+                    print(str(te)+" in file "+filename)
+                    continue
+
+                all_tevent = np.concatenate((all_tevent, tevent))
                 all_trigtime.append(trigtime)
 
             sort_tevent = np.sort(all_tevent)
