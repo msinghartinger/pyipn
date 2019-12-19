@@ -16,6 +16,7 @@ import wget
 import sys
 import h5py
 import os
+from collections import OrderedDict
 
 
 def read_integral_spiacs_file(filename, data_dir):
@@ -522,3 +523,107 @@ def gbm_tte_to_hdf5(data_dir):
                 t = grp.create_dataset('tevent', data=sort_tevent)
             except KeyError:
                 t = grp.create_dataset('tevent', data=sort_tevent)
+
+
+def close_triggers_int_gbm(time_delta, data_dir=None, file_gbm=None, file_int=None):
+    """Summary
+    
+    Args:
+        time_delta (float): max time differene between triggers
+        data_dir (None, optional): Description
+        file_gbm (None, optional): Description
+        file_int (None, optional): Description
+    
+    Returns:
+        close (Ordered Dict): Ordered Dict of all close lightcurves
+    """
+    assert (data_dir != None) or (file_gbm != None and file_int != None), "no file arguments are given!"
+
+    close = OrderedDict()
+
+    if data_dir != None:
+        gbm_file = data_dir + "lc/GBM_TRIGDAT/gbm_trigdat.hdf5"
+        int_file = data_dir + "lc/INTEGRAL_SPIACS/integral_spiacs.hdf5"
+
+    if file_gbm != None:
+        gbm_file = file_gbm
+
+    if file_int != None:
+        int_file = file_int
+
+
+
+    with h5py.File(gbm_file, 'r') as gbm:
+        with h5py.File(int_file, 'r') as integral:
+            for grp_gbm_name in gbm:
+                grp_gbm = gbm[grp_gbm_name]
+                trigtime_gbm = Time.strptime(grp_gbm.attrs['trigtime'], '%Y-%m-%d_%H:%M:%S.%f')
+
+                for grp_integral_name in integral:
+                    grp_integral = integral[grp_integral_name]
+                    trigtime_integral = Time.strptime(grp_integral.attrs['trigtime'], '%Y-%m-%d_%H:%M:%S.%f')
+                    delta = (trigtime_gbm - trigtime_integral).to_datetime()
+                    if abs(delta.total_seconds()) < time_delta:
+                        gbm_dict = {'trigtime': trigtime_gbm,
+                              'time': grp_gbm['time'].value,
+                              'rate': grp_gbm['rate'].value,
+                              'combinedchannels': grp_gbm['combinedchannels'].value,
+                              'binsize': grp_gbm['binsize'].value,
+                              'position': grp_gbm['position'].value
+                              }
+                        integral_dict = {'trigtime': trigtime_integral,
+                                   'time': grp_integral['time'].value,
+                                   'count': grp_integral['count'].value}
+                        close[gbm_dict['trigtime'].strftime('%Y-%m-%d_%H:%M:%S')] = [delta, gbm_dict, integral_dict]
+
+    return close
+
+def close_to_reference_grb(times, time_delta, data_dir=None, reference_file=None):
+    """Summary
+    
+    Args:
+        times (TYPE): Description
+        time_delta (TYPE): Description
+        data_dir (None, optional): Description
+        reference_file (None, optional): Description
+    
+    Returns:
+        TYPE: Description
+    """
+    assert (data_dir != None) or (reference_file != None), "no file arguments are given!"
+
+    ref = []
+
+    if data_dir != None:
+        reference = data_dir + "reference_grbs.hdf5"
+
+    if reference_file != None:
+        reference = reference_file
+
+    with h5py.File(reference, 'r') as f:
+        for grp_name in f:
+            grp = f[grp_name]
+            ra = grp.attrs['ra']
+            dec = grp.attrs['dec']
+            time = Time.strptime(grp.attrs['time'], '%Y-%m-%d_%H:%M:%S.%f')
+            
+            grb = {'ra': ra, 'dec': dec, 'time': time}
+            ref.append(grb)
+
+    ref_close = OrderedDict()
+    c = 0
+
+    for t in times:
+        time = t["trigtime"]
+        for r in ref:
+            delta = (time - r['time']).to_datetime()
+            if abs(delta.total_seconds()) < time_delta:
+                d = {'ra': r['ra'], 'dec': r['dec'], 'trigtime_gbm': time, 'dt': t["dt"]}
+                if time.strftime('%Y-%m-%d_%H:%M:%S') in ref_close:
+                    c += 1
+                    ref_close[time.strftime('%Y-%m-%d_%H:%M:%S')+"_"+str(c)] = d
+                else:
+                    c = 0
+                    ref_close[time.strftime('%Y-%m-%d_%H:%M:%S')] = d
+
+    return ref_close
