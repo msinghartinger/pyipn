@@ -107,7 +107,6 @@ pyipn/test.ipynb
 .directory
 /examples/template_config.yaml
 
-/pyipn/data/*_tle.txt*
 /pyipn/Scripts
 /pyipn/share
 /pyipn/tcl
