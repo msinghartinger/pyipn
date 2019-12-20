@@ -114,20 +114,30 @@ def read_gbm_trigdat_file(filename, data_dir):
     return tstart, combinedchannels, rate, binsize, start, trigtime, trigtimesec, pos
 
 
-def read_gbm_tte_file(path):
+def read_gbm_tte_file(path, min_energy=0.):
     """Summary
     
     Args:
         path (TYPE): Description
+        min_energy (TYPE): minimum energy in keV to consider (all lower energy events are ignored)
     
     Returns:
         TYPE: Description
     """
     with fits.open(path, memmap=True) as tte:
         event_t = tte["EVENTS"].data["TIME"]
+        event_channel = tte['EVENTS'].data['PHA']
         trigtimesec = tte["EVENTS"].header['TRIGTIME']
+        ebounds_min = tte['EBOUNDS'].data['E_MIN']
+        ebounds_channels = tte['EBOUNDS'].data['CHANNEL']
 
-    tevent = conv_to_utc_fermi(event_t).unix
+    # find smallest channel # with energy larger than min_energy
+    rel_channels = ebounds_channels[np.where(ebounds_channels > min_energy)]
+    min_rel_channel = np.amin(rel_channels)
+
+    rel_events = event_t[np.where(event_channel >= min_rel_channel)]
+
+    tevent = conv_to_utc_fermi(rel_events).unix
     trigtime = conv_to_utc_fermi(trigtimesec)
 
     return tevent, trigtime
@@ -363,6 +373,7 @@ def get_reference_grb_position(year, data_dir):
                 lines = {line.split()[0] : line.split()[1:] for line in lines if len(line)>1}
                 
                 try:
+                    title = str(lines['TITLE:'])
                     ra = float(lines['GRB_RA:'][0][:-1])
                     dec = float(lines['GRB_DEC:'][0][:-1])
                     date = lines['GRB_DATE:'][4]
@@ -370,6 +381,7 @@ def get_reference_grb_position(year, data_dir):
 
                 except KeyError:
                     try:
+                        title = str(lines['TITLE:'])
                         ra = float(lines['EVENT_RA:'][0][:-1])
                         dec = float(lines['EVENT_DEC:'][0][:-1])
                         date = lines['EVENT_DATE:'][4]
@@ -380,7 +392,7 @@ def get_reference_grb_position(year, data_dir):
                 datetime = '20'+date+'_'+time
                 time = Time.strptime(datetime, '%Y/%m/%d_%H:%M:%S.%f')
 
-                grb = {'ra': ra, 'dec': dec, 'time': time}
+                grb = {'title': title, 'ra': ra, 'dec': dec, 'time': time}
                 grbs.append(grb)
 
     with h5py.File((data_dir+"reference_grbs.hdf5"), 'a') as f:
@@ -389,6 +401,7 @@ def get_reference_grb_position(year, data_dir):
             grp.attrs['time'] = grb['time'].strftime('%Y-%m-%d_%H:%M:%S.%f')
             grp.attrs['ra'] = grb['ra']
             grp.attrs['dec'] = grb['dec']
+            grp.attrs['title'] = grb['title']
 
 
 def integral_spiacs_to_hdf5(data_dir):
@@ -480,11 +493,12 @@ def get_immediate_subdirectories(a_dir):
             if os.path.isdir(os.path.join(a_dir, name))]
 
 
-def gbm_tte_to_hdf5(data_dir):
+def gbm_tte_to_hdf5(data_dir, min_energy=0.):
     """Summary
     
     Args:
         data_dir (TYPE): Description
+        min_energy (float, optional): Description
     """
     tte_dir = data_dir+"/lc/GBM_TTE/"
     dirs = get_immediate_subdirectories(tte_dir)
@@ -506,7 +520,7 @@ def gbm_tte_to_hdf5(data_dir):
 
             for filename in files:
                 try:
-                    tevent, trigtime = read_gbm_tte_file(tte_dir+"/"+a_dir+"/"+filename)
+                    tevent, trigtime = read_gbm_tte_file(tte_dir+"/"+a_dir+"/"+filename, min_energy=min_energy)
                 except TypeError as te:
                     print(str(te)+" in file "+filename)
                     continue
@@ -603,11 +617,12 @@ def close_to_reference_grb(times, time_delta, data_dir=None, reference_file=None
     with h5py.File(reference, 'r') as f:
         for grp_name in f:
             grp = f[grp_name]
+            title = grp.attrs['title']
             ra = grp.attrs['ra']
             dec = grp.attrs['dec']
             time = Time.strptime(grp.attrs['time'], '%Y-%m-%d_%H:%M:%S.%f')
             
-            grb = {'ra': ra, 'dec': dec, 'time': time}
+            grb = {'title': title, 'ra': ra, 'dec': dec, 'time': time}
             ref.append(grb)
 
     ref_close = OrderedDict()
@@ -618,7 +633,7 @@ def close_to_reference_grb(times, time_delta, data_dir=None, reference_file=None
         for r in ref:
             delta = (time - r['time']).to_datetime()
             if abs(delta.total_seconds()) < time_delta:
-                d = {'ra': r['ra'], 'dec': r['dec'], 'trigtime_gbm': time, 'dt': t["dt"]}
+                d = {'title': r['title'], 'ra': r['ra'], 'dec': r['dec'], 'trigtime_gbm': time, 'dt': t["dt"]}
                 if time.strftime('%Y-%m-%d_%H:%M:%S') in ref_close:
                     c += 1
                     ref_close[time.strftime('%Y-%m-%d_%H:%M:%S')+"_"+str(c)] = d

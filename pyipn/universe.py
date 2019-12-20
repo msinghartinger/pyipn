@@ -317,7 +317,7 @@ class Universe(object):
         ax.add_patch(circle)
 
         if point is not None:
-            p = Circle((point[0], point[1]), radius=1.5, color='red', transform=ax.get_transform("icrs"))
+            p = Circle((point[0], point[1]), radius=1.6, color='red', transform=ax.get_transform("icrs"))
             ax.add_patch(p)
 
         #ax.xaxis.set_major_locator(MultipleLocator(1))
