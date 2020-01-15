@@ -198,7 +198,7 @@ def get_gbm_trigdat_files(year, data_dir):
         else:
             print("No Trigdatfile found in: "+url)
 
-        time.sleep(0.5)
+        time.sleep(0.25)
 
     return trigdatfiles
 
@@ -266,7 +266,7 @@ def get_gbm_tte_files(year, data_dir):
         else:
             print("No TTE file found in: "+url1)
 
-        time.sleep(300)
+        time.sleep(60)
 
     return tot_ttefiles
 
@@ -324,7 +324,7 @@ def get_integral_spiacs_files(year, data_dir):
 
         wget.download(u, data_dir+"/lc/INTEGRAL_SPIACS/")
 
-        time.sleep(0.5)
+        time.sleep(0.25)
 
     return lcfiles
 
@@ -370,7 +370,7 @@ def get_reference_grb_position(year, data_dir):
             text = text.string
             if text != None:
                 lines = text.splitlines()
-                lines = {line.split()[0] : line.split()[1:] for line in lines if len(line)>1}
+                lines = {line.split()[0] : line.split()[1:] for line in lines if len(line.split())>1}
                 
                 try:
                     title = str(lines['TITLE:'])

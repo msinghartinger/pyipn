@@ -197,8 +197,8 @@ def iccf_ij(lc1_x, lc1_y, lc2_x, lc2_y, tau, method):
         if method == 'linear':
             lc2_yinterp = np.interp(lc1_x-tau[i], lc2_x, lc2_y)
         elif method == 'spline':
-            spl = sp.interpolate.splrep(lc2_x, lc2_y, s=0)
-            lc2_yinterp = sp.interpolate.splev(lc1_x-tau[i], spl, der=0)
+            spl = sp.interpolate.splrep(lc2_x, lc2_y)
+            lc2_yinterp = sp.interpolate.splev(lc1_x-tau[i], spl, ext=3)
         elif method == 'quadratic':
             interp = sp.interpolate.interp1d(lc2_x, lc2_y, kind='quadratic', bounds_error=False, fill_value='extrapolate')
             lc2_yinterp = interp(lc1_x-tau[i])
@@ -216,6 +216,7 @@ def iccf(lc1_x, lc1_y, lc2_x, lc2_y, tau, method='linear'):
     """
     (linearly) Interpolated Cross Correlation Function (ICCF; Gaskell & Sparke 1986)
     transcribed from https://rdrr.io/github/svdataman/sour/src/R/iccf_functions.R
+    only method 'linear' works correctly
     
     Args:
         lc1_x (array<float>): x values of light curve 1
@@ -230,6 +231,18 @@ def iccf(lc1_x, lc1_y, lc2_x, lc2_y, tau, method='linear'):
     """
     methods = ["linear", "spline", "quadratic"]
     assert (method in methods), method + "is not a valid method!"
+
+    if method == 'spline':
+        start = np.maximum(lc1_x[0], lc2_x[0])
+        end = np.minimum(lc1_x[-1], lc2_x[-1])
+
+        lc1_overlap = np.where((lc1_x >= start) and (lc1_x <= end))
+        lc1_x = lc1_x[lc1_overlap]
+        lc1_y = lc1_y[lc1_overlap]
+
+        lc2_overlap = np.where((lc2_x >= start) and (lc2_x <= end))
+        lc2_x = lc2_x[lc2_overlap]
+        lc2_y = lc2_y[lc2_overlap]
 
     n1 = lc1_x.size
     n2 = lc2_x.size
@@ -247,14 +260,20 @@ def iccf(lc1_x, lc1_y, lc2_x, lc2_y, tau, method='linear'):
 
     return tau, iccf
 
-def max_spike_bins(center_bins, center_cf, fit_size, add):
+def max_spike_bins(center_bins, center_cf, fit_size, add=0):
     """
     find and return all bins which are close to the main spike in the function
     
     Args:
-        center_bins (TYPE): Description
-        center_cf (TYPE): Description
-        fit_size (TYPE): Description
+        center_bins (TYPE): lag values
+        center_cf (TYPE): correlation function values
+        fit_size (TYPE): include values on both sides of maximum unitl 
+                            corr function value lower than fit_size * mean
+        add (int, optional): add additional values on each side
+    
+    Returns:
+        TYPE:   lag bins and corresponding corr function values around maximum
+                on which to perform fit and lag value of maximum
     """
     argmax = np.argmax(center_cf)
     maxr = center_bins[argmax]
