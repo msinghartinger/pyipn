@@ -63,6 +63,7 @@ find closest epoch TLE to correstponding datetime from specified file and return
         str: returns two line elements with epoch closest to requested time
     """
     day = convert_to_decimal_days(dt)
+    year = dt.year
     diff = []
 
     with open(get_path_of_data_file(tle_file), 'r') as f:
@@ -71,7 +72,8 @@ find closest epoch TLE to correstponding datetime from specified file and return
             elem = line.split()
             if elem[0] == '1':
                 epoch_day = float(elem[3][2:])
-                diff.append(abs(epoch_day - day))
+                epoch_year = 2000+int(elem[3][0:2])
+                diff.append(abs((epoch_year-year)*365 + epoch_day - day))
 
         argmin = np.argmin(np.array(diff))
         line1 = lines[argmin*2]

@@ -498,7 +498,7 @@ def gbm_tte_to_hdf5(data_dir, min_energy=0.):
     
     Args:
         data_dir (TYPE): Description
-        min_energy (float, optional): Description
+        min_energy (float, optional): minimum energy in keV to consider (all lower energy events are ignored)
     """
     tte_dir = data_dir+"/lc/GBM_TTE/"
     dirs = get_immediate_subdirectories(tte_dir)
@@ -633,7 +633,7 @@ def close_to_reference_grb(times, time_delta, data_dir=None, reference_file=None
         for r in ref:
             delta = (time - r['time']).to_datetime()
             if abs(delta.total_seconds()) < time_delta:
-                d = {'title': r['title'], 'ra': r['ra'], 'dec': r['dec'], 'trigtime_gbm': time, 'dt': t["dt"]}
+                d = {'title': r['title'], 'ra': r['ra'], 'dec': r['dec'], 'trigtime_gbm': time, 'dt': t["dt"], 'dtmax': t['dtmax']}
                 if time.strftime('%Y-%m-%d_%H:%M:%S') in ref_close:
                     c += 1
                     ref_close[time.strftime('%Y-%m-%d_%H:%M:%S')+"_"+str(c)] = d
