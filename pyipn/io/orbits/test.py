@@ -10,7 +10,7 @@ import numpy as np
 
 #package to send query requests to space-track.org
 from spacetrack import SpaceTrackClient
-st = SpaceTrackClient('singhartinger.moritz@gmail.com', 'WhydoIneedsuchalongpassword')
+st = SpaceTrackClient('username', 'password')
 
 import spacetrack.operators as op
 import datetime as dt
